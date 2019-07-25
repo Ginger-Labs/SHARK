@@ -256,7 +256,7 @@ class Model:
 		# out = tf.identity(val, name="out")
 		# tf.lite.TFLiteConverter.from_session(self.sess, [img], [out])
 
-		output_node_names = [n.name for n in self.sess.graph_def.node]
+		output_node_names = ['CTCGreedyDecoder']
 		# output_node_names = [n.name for n in tf.get_default_graph().as_graph_def().node]
 		frozen_graph_def = tf.graph_util.convert_variables_to_constants(
 			self.sess,
