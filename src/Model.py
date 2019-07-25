@@ -248,6 +248,15 @@ class Model:
 		evalList = [self.decoder] + ([self.ctcIn3dTBC] if evalRnnOutput else [])
 		feedDict = {self.inputImgs : batch.imgs, self.seqLen : [Model.maxTextLen] * numBatchElements, self.is_train: False}
 		evalRes = self.sess.run(evalList, feedDict)
+        
+        # Attempting to make a TFLite model
+        img = tf.placeholder(name="img", dtype=tf.float32, shape=(1, 64, 64, 3))
+        var = tf.get_variable("weights", dtype=tf.float32, shape=(1, 64, 64, 3))
+        val = img + var
+        out = tf.identity(val, name="out")
+        tf.lite.TFLiteConverter.from_session(self.sess, [img], [out])
+            
+            
 		decoded = evalRes[0]
 		texts = self.decoderOutputToText(decoded, numBatchElements)
 		
