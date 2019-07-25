@@ -13,7 +13,7 @@ class DecoderType:
 	WordBeamSearch = 2
 
 
-class Model: 
+class Model:
 	"minimalistic TF model for HTR"
 
 	# model constants
@@ -43,14 +43,14 @@ class Model:
 		# setup optimizer to train NN
 		self.batchesTrained = 0
 		self.learningRate = tf.placeholder(tf.float32, shape=[])
-		self.update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) 
+		self.update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 		with tf.control_dependencies(self.update_ops):
 			self.optimizer = tf.train.RMSPropOptimizer(self.learningRate).minimize(self.loss)
 
 		# initialize TF
 		(self.sess, self.saver) = self.setupTF()
 
-			
+
 	def setupCNN(self):
 		"create CNN layers and return output of these layers"
 		cnnIn4d = tf.expand_dims(input=self.inputImgs, axis=3)
@@ -87,14 +87,14 @@ class Model:
 		# bidirectional RNN
 		# BxTxF -> BxTx2H
 		((fw, bw), _) = tf.nn.bidirectional_dynamic_rnn(cell_fw=stacked, cell_bw=stacked, inputs=rnnIn3d, dtype=rnnIn3d.dtype)
-									
+
 		# BxTxH + BxTxH -> BxTx2H -> BxTx1X2H
 		concat = tf.expand_dims(tf.concat([fw, bw], 2), 2)
-									
+
 		# project output to chars (including blank): BxTx1x2H -> BxTx1xC -> BxTxC
 		kernel = tf.Variable(tf.truncated_normal([1, 1, numHidden * 2, len(self.charList) + 1], stddev=0.1))
 		self.rnnOut3d = tf.squeeze(tf.nn.atrous_conv2d(value=concat, filters=kernel, rate=1, padding='SAME'), axis=[2])
-		
+
 
 	def setupCTC(self):
 		"create CTC loss and decoder and return them"
@@ -120,7 +120,7 @@ class Model:
 			# import compiled word beam search operation (see https://github.com/githubharald/CTCWordBeamSearch)
 			word_beam_search_module = tf.load_op_library('TFWordBeamSearch.so')
 
-			# prepare information about language (dictionary, characters in dataset, characters forming words) 
+			# prepare information about language (dictionary, characters in dataset, characters forming words)
 			chars = str().join(self.charList)
 			wordChars = open('../model/wordCharList.txt').read().splitlines()[0]
 			corpus = open('../data/corpus.txt').read()
@@ -178,7 +178,7 @@ class Model:
 
 	def decoderOutputToText(self, ctcOutput, batchSize):
 		"extract texts from output of CTC decoder"
-		
+
 		# contains string of labels for each batch element
 		encodedLabelStrs = [[] for i in range(batchSize)]
 
@@ -193,8 +193,8 @@ class Model:
 
 		# TF decoders: label strings are contained in sparse tensor
 		else:
-			# ctc returns tuple, first element is SparseTensor 
-			decoded=ctcOutput[0][0] 
+			# ctc returns tuple, first element is SparseTensor
+			decoded=ctcOutput[0][0]
 
 			# go over all indices and save mapping: batch -> values
 			idxDict = { b : [] for b in range(batchSize) }
@@ -241,25 +241,25 @@ class Model:
 
 	def inferBatch(self, batch, calcProbability=False, probabilityOfGT=False):
 		"feed a batch into the NN to recognize the texts"
-		
+
 		# decode, optionally save RNN output
 		numBatchElements = len(batch.imgs)
 		evalRnnOutput = self.dump or calcProbability
 		evalList = [self.decoder] + ([self.ctcIn3dTBC] if evalRnnOutput else [])
 		feedDict = {self.inputImgs : batch.imgs, self.seqLen : [Model.maxTextLen] * numBatchElements, self.is_train: False}
 		evalRes = self.sess.run(evalList, feedDict)
-        
-        # Attempting to make a TFLite model
-        img = tf.placeholder(name="img", dtype=tf.float32, shape=(1, 64, 64, 3))
-        var = tf.get_variable("weights", dtype=tf.float32, shape=(1, 64, 64, 3))
-        val = img + var
-        out = tf.identity(val, name="out")
-        tf.lite.TFLiteConverter.from_session(self.sess, [img], [out])
-            
-            
+
+		# Attempting to make a TFLite model
+		img = tf.placeholder(name="img", dtype=tf.float32, shape=(1, 64, 64, 3))
+		var = tf.get_variable("weights", dtype=tf.float32, shape=(1, 64, 64, 3))
+		val = img + var
+		out = tf.identity(val, name="out")
+		tf.lite.TFLiteConverter.from_session(self.sess, [img], [out])
+
+
 		decoded = evalRes[0]
 		texts = self.decoderOutputToText(decoded, numBatchElements)
-		
+
 		# feed RNN output and recognized text into CTC loss to compute labeling probability
 		probs = None
 		if calcProbability:
@@ -275,10 +275,9 @@ class Model:
 			self.dumpNNOutput(evalRes[1])
 
 		return (texts, probs)
-	
+
 
 	def save(self):
 		"save model to file"
 		self.snapID += 1
 		self.saver.save(self.sess, '../model/snapshot', global_step=self.snapID)
- 
