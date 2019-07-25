@@ -13,10 +13,22 @@ require('isomorphic-fetch');
 const app = express().use(express.json());
 const port = 3000;
 const google = `https://www.google.com/inputtools/request?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8`;
+//the trace is an array of strokes
+const defaultStrokes = [
+    [
+        [300, 310, 320, 330, 340],
+        [320, 320, 320, 320, 320] // y coordinate
+        // each pair of (x, y) coordinates represents one sampling point
+    ],
+    [
+        [320, 320, 320, 320, 320],
+        [300, 310, 320, 330, 340]
+    ]
+];
 app.get('/detect', (req, res) => __awaiter(this, void 0, void 0, function* () {
     // res.send('hello world!')
     console.log('body: ', req.body);
-    const { strokes, width = 800, height = 800 } = req.body;
+    const { strokes = defaultStrokes, width = 800, height = 800 } = req.body;
     const json = yield fetch(google, {
         method: 'POST',
         headers: {
