@@ -250,12 +250,22 @@ class Model:
 		evalRes = self.sess.run(evalList, feedDict)
 
 		# Attempting to make a TFLite model
-		img = tf.placeholder(name="img", dtype=tf.float32, shape=(1, 64, 64, 3))
-		var = tf.get_variable("weights", dtype=tf.float32, shape=(1, 64, 64, 3))
-		val = img + var
-		out = tf.identity(val, name="out")
-		tf.lite.TFLiteConverter.from_session(self.sess, [img], [out])
+		# img = tf.placeholder(name="img", dtype=tf.float32, shape=(1, 64, 64, 3))
+		# var = tf.get_variable("weights", dtype=tf.float32, shape=(1, 64, 64, 3))
+		# val = img + var
+		# out = tf.identity(val, name="out")
+		# tf.lite.TFLiteConverter.from_session(self.sess, [img], [out])
 
+		output_node_names = [n.name for n in self.sess.graph_def.node]
+		# output_node_names = [n.name for n in tf.get_default_graph().as_graph_def().node]
+		frozen_graph_def = tf.graph_util.convert_variables_to_constants(
+			self.sess,
+			self.sess.graph_def,
+			output_node_names)
+
+		# Save the frozen graph
+		with open('output_graph.pb', 'wb') as f:
+			f.write(frozen_graph_def.SerializeToString())
 
 		decoded = evalRes[0]
 		texts = self.decoderOutputToText(decoded, numBatchElements)
