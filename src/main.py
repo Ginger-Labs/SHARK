@@ -12,11 +12,11 @@ from SamplePreprocessor import preprocess
 
 class FilePaths:
 	"filenames and paths to data"
-	fnCharList = '../model/charList.txt'
-	fnAccuracy = '../model/accuracy.txt'
-	fnTrain = '../data/'
-	fnInfer = '../data/test.png'
-	fnCorpus = '../data/corpus.txt'
+	fnCharList = 'model/charList.txt'
+	fnAccuracy = 'model/accuracy.txt'
+	fnTrain = 'data/'
+	fnInfer = 'data/test.png'
+	fnCorpus = 'data/corpus.txt'
 
 
 def train(model, loader):
@@ -40,7 +40,7 @@ def train(model, loader):
 
 		# validate
 		charErrorRate = validate(model, loader)
-		
+
 		# if best validation accuracy so far, save model parameters
 		if charErrorRate < bestCharErrorRate:
 			print('Character error rate improved, save model')
@@ -71,8 +71,8 @@ def validate(model, loader):
 		print('Batch:', iterInfo[0],'/', iterInfo[1])
 		batch = loader.getNext()
 		(recognized, _) = model.inferBatch(batch)
-		
-		print('Ground truth -> Recognized')	
+
+		print('Ground truth -> Recognized')
 		for i in range(len(recognized)):
 			numWordOK += 1 if batch.gtTexts[i] == recognized[i] else 0
 			numWordTotal += 1
@@ -80,7 +80,7 @@ def validate(model, loader):
 			numCharErr += dist
 			numCharTotal += len(batch.gtTexts[i])
 			print('[OK]' if dist==0 else '[ERR:%d]' % dist,'"' + batch.gtTexts[i] + '"', '->', '"' + recognized[i] + '"')
-	
+
 	# print validation result
 	charErrorRate = numCharErr / numCharTotal
 	wordAccuracy = numWordOK / numWordTotal
@@ -106,6 +106,7 @@ def main():
 	parser.add_argument('--beamsearch', help='use beam search instead of best path decoding', action='store_true')
 	parser.add_argument('--wordbeamsearch', help='use word beam search instead of best path decoding', action='store_true')
 	parser.add_argument('--dump', help='dump output of NN to CSV file(s)', action='store_true')
+	parser.add_argument('--htr', help='image to HTR')
 
 	args = parser.parse_args()
 
@@ -115,14 +116,14 @@ def main():
 	elif args.wordbeamsearch:
 		decoderType = DecoderType.WordBeamSearch
 
-	# train or validate on IAM dataset	
+	# train or validate on IAM dataset
 	if args.train or args.validate:
 		# load training data, create TF model
 		loader = DataLoader(FilePaths.fnTrain, Model.batchSize, Model.imgSize, Model.maxTextLen)
 
 		# save characters of model for inference mode
 		open(FilePaths.fnCharList, 'w').write(str().join(loader.charList))
-		
+
 		# save words contained in dataset into file
 		open(FilePaths.fnCorpus, 'w').write(str(' ').join(loader.trainWords + loader.validationWords))
 
@@ -138,9 +139,11 @@ def main():
 	else:
 		print(open(FilePaths.fnAccuracy).read())
 		model = Model(open(FilePaths.fnCharList).read(), decoderType, mustRestore=True, dump=args.dump)
-		infer(model, FilePaths.fnInfer)
+		inferPath = args.htr
+		if inferPath is None:
+			inferPath = FilePaths.fnInfer
+		infer(model, inferPath)
 
 
 if __name__ == '__main__':
 	main()
-
