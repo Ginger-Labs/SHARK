@@ -240,7 +240,7 @@ class Model:
 				f.write(csv)
 
 	def convertToOutputGraph(self):
-		output_node_names = ['CTCGreedyDecoder']
+		output_node_names = [n.name for n in self.sess.graph_def.node]
 		print('Output node names: ')
 		print(*output_node_names)
 
@@ -275,6 +275,20 @@ class Model:
 		# out = tf.identity(val, name="out")
 		# tf.lite.TFLiteConverter.from_session(self.sess, [img], [out])
 
+<<<<<<< HEAD
+		output_node_names = ['CTCGreedyDecoder']
+		# output_node_names = [n.name for n in tf.get_default_graph().as_graph_def().node]
+		frozen_graph_def = tf.graph_util.convert_variables_to_constants(
+			self.sess,
+			self.sess.graph_def,
+			output_node_names)
+
+		# Save the frozen graph
+		with open('output_graph.pb', 'wb') as f:
+			f.write(frozen_graph_def.SerializeToString())
+
+=======
+>>>>>>> a4ce170c0d1ecbc92bf5751628f4cf901b39c43a
 		decoded = evalRes[0]
 		texts = self.decoderOutputToText(decoded, numBatchElements)
 
