@@ -1,0 +1,19 @@
+{
+  "name": "shark",
+  "version": "1.0.0",
+  "main": "server/index.js",
+  "repository": "git@github.com:Ginger-Labs/shark.git",
+  "author": "garrettm <garrett@gingerlabs.com>",
+  "license": "MIT",
+  "scripts": {
+    "watch": "tsc -w server/*.ts",
+    "build": "tsc server/*.ts",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.0"
+  }
+}
