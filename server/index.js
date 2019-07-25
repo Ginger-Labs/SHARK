@@ -37,14 +37,19 @@ app.post('/htr', upload.single('image'), (req, res) => __awaiter(this, void 0, v
     if (file) {
         // const command = `cd src/ && python3 --htr='../${file.path}}'`
         // console.log('command: ', command)
+        const pylog = (place, value) => {
+            if (!value.includes('deprecat')) {
+                console.log(place, value);
+            }
+        };
         const simpleHTR = child_process_1.spawn('python3', ['src/main.py', `--htr='${file.path}'`]);
         simpleHTR.stdout.setEncoding('utf8');
         simpleHTR.stdout.on('data', data => {
-            console.log('stdout: ', data);
+            pylog('stdout: ', data);
         });
         simpleHTR.stderr.setEncoding('utf8');
         simpleHTR.stderr.on('data', data => {
-            console.log('stderr: ', data);
+            pylog('stderr: ', data);
         });
         simpleHTR.on('close', code => {
             console.log('exited with code: ', code);
