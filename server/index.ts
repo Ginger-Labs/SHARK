@@ -28,20 +28,37 @@ app.post('/htr', upload.single('image'), async (req, res) => {
   console.log('body: ', body)
   console.log('file: ', file)
   const {strokes = defaultStrokes, width = 800, height = 800} = body
+  const strokeMatches = new Promise((res, rej) => {
+    if (!file) { return {strokeMatch: undefined, strokeProbability: undefined} }
 
-  if (file) {
-    // const command = `cd src/ && python3 --htr='../${file.path}}'`
-    // console.log('command: ', command)
-    const pylog = (place: string, value: string) => {
-      if (!value.includes('deprecat')) {
-        console.log(place, value)
-      }
-    }
+    let strokeMatch: string | undefined, strokeProbability: number | undefined
     const simpleHTR = spawn('python3', ['src/main.py', `--htr='${file.path}'`])
     simpleHTR.stdout.setEncoding('utf8')
     simpleHTR.stdout.on('data', data => {
-      pylog('stdout: ', data)
+      if (pylog('stdout: ', data)) {
+        const lines = data.split('\n')
+        for (const line of lines) {
+          const recogIdx = line.indexOf('Recognized: ')
+          if (recogIdx !== -1) {
+            strokeMatch = line.slice(13, line.indexOf('"', 13))
+          }
+
+          const probIdx = line.indexOf('Probability: ')
+          if (probIdx !== -1) {
+            try {
+              const prob = line.slice(13)
+              strokeProbability = parseFloat(prob)
+              res({strokeMatch, strokeProbability})
+            }
+            catch (parseError) {
+              console.log('parse error: ', parseError)
+              rej(parseError)
+            }
+          }
+        }
+      }
     })
+
     simpleHTR.stderr.setEncoding('utf8')
     simpleHTR.stderr.on('data', data => {
       pylog('stderr: ', data)
@@ -49,9 +66,9 @@ app.post('/htr', upload.single('image'), async (req, res) => {
     simpleHTR.on('close', code => {
       console.log('exited with code: ', code)
     })
-  }
+  })
 
-  const googleResponse = await fetch(google, {
+  const imgMatches = await fetch(google, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -68,16 +85,33 @@ app.post('/htr', upload.single('image'), async (req, res) => {
       }]
     })
   }).then(resp => resp.json())
+    .then(googleResponse => {
+      let imgMatches: string[] | undefined
+      if (Array.isArray(googleResponse) && googleResponse[0] === 'SUCCESS') {
+        const [code, details] = googleResponse
+        const [id, results] = details[0]
+        imgMatches = results
+        console.log('[Google Response]: ', code, id, results, details.slice(1))
+      }
+      else {
+        console.log('[Google Response]: ', googleResponse)
+      }
+      return imgMatches
+    })
 
-  if (Array.isArray(googleResponse)) {
-    const [code, details] = googleResponse
-    console.log('[Google Response]: ', code, details)
-  }
-  else {
-    console.log('[Google Response]: ', googleResponse)
-  }
-
-  res.send(googleResponse)
+  const strokeResponse = await strokeMatches
+  const response = {imgMatches, ...strokeResponse}
+  console.log('replying with: ', response)
+  res.send(JSON.stringify(response))
 })
 
 app.listen(port, () => console.log(`server running on port ${port}`))
+
+
+const pylog = (place: string, value: string) => {
+  if (!value.includes('deprecat')) {
+    console.log(place, value)
+    return true
+  }
+  return false
+}

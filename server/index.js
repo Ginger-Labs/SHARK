@@ -34,18 +34,35 @@ app.post('/htr', upload.single('image'), (req, res) => __awaiter(this, void 0, v
     console.log('body: ', body);
     console.log('file: ', file);
     const { strokes = defaultStrokes, width = 800, height = 800 } = body;
-    if (file) {
-        // const command = `cd src/ && python3 --htr='../${file.path}}'`
-        // console.log('command: ', command)
-        const pylog = (place, value) => {
-            if (!value.includes('deprecat')) {
-                console.log(place, value);
-            }
-        };
+    const strokeMatches = new Promise((res, rej) => {
+        if (!file) {
+            return { strokeMatch: undefined, strokeProbability: undefined };
+        }
+        let strokeMatch, strokeProbability;
         const simpleHTR = child_process_1.spawn('python3', ['src/main.py', `--htr='${file.path}'`]);
         simpleHTR.stdout.setEncoding('utf8');
         simpleHTR.stdout.on('data', data => {
-            pylog('stdout: ', data);
+            if (pylog('stdout: ', data)) {
+                const lines = data.split('\n');
+                for (const line of lines) {
+                    const recogIdx = line.indexOf('Recognized: ');
+                    if (recogIdx !== -1) {
+                        strokeMatch = line.slice(13, line.indexOf('"', 13));
+                    }
+                    const probIdx = line.indexOf('Probability: ');
+                    if (probIdx !== -1) {
+                        try {
+                            const prob = line.slice(13);
+                            strokeProbability = parseFloat(prob);
+                            res({ strokeMatch, strokeProbability });
+                        }
+                        catch (parseError) {
+                            console.log('parse error: ', parseError);
+                            rej(parseError);
+                        }
+                    }
+                }
+            }
         });
         simpleHTR.stderr.setEncoding('utf8');
         simpleHTR.stderr.on('data', data => {
@@ -54,8 +71,8 @@ app.post('/htr', upload.single('image'), (req, res) => __awaiter(this, void 0, v
         simpleHTR.on('close', code => {
             console.log('exited with code: ', code);
         });
-    }
-    const googleResponse = yield fetch(google, {
+    });
+    const imgMatches = yield fetch(google, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -71,14 +88,30 @@ app.post('/htr', upload.single('image'), (req, res) => __awaiter(this, void 0, v
                     language: 'en_US'
                 }]
         })
-    }).then(resp => resp.json());
-    if (Array.isArray(googleResponse)) {
-        const [code, details] = googleResponse;
-        console.log('[Google Response]: ', code, details);
-    }
-    else {
-        console.log('[Google Response]: ', googleResponse);
-    }
-    res.send(googleResponse);
+    }).then(resp => resp.json())
+        .then(googleResponse => {
+        let imgMatches;
+        if (Array.isArray(googleResponse) && googleResponse[0] === 'SUCCESS') {
+            const [code, details] = googleResponse;
+            const [id, results] = details[0];
+            imgMatches = results;
+            console.log('[Google Response]: ', code, id, results, details.slice(1));
+        }
+        else {
+            console.log('[Google Response]: ', googleResponse);
+        }
+        return imgMatches;
+    });
+    const strokeResponse = yield strokeMatches;
+    const response = Object.assign({ imgMatches }, strokeResponse);
+    console.log('replying with: ', response);
+    res.send(JSON.stringify(response));
 }));
 app.listen(port, () => console.log(`server running on port ${port}`));
+const pylog = (place, value) => {
+    if (!value.includes('deprecat')) {
+        console.log(place, value);
+        return true;
+    }
+    return false;
+};
