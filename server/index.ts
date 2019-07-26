@@ -28,11 +28,11 @@ app.post('/htr', upload.single('image'), async (req, res) => {
   console.log('body: ', body)
   console.log('file: ', file)
   const {strokes = defaultStrokes, width = 800, height = 800} = body
-  const strokeMatches = new Promise((res, rej) => {
-    if (!file) { return {strokeMatch: undefined, strokeProbability: undefined} }
+  const imgMatches = new Promise((res, rej) => {
+    if (!file) { return {imgMatch: undefined, imgProbability: undefined} }
 
-    let strokeMatch: string | undefined, strokeProbability: number | undefined
-    const simpleHTR = spawn('python3', ['src/main.py', `--htr='${file.path}'`])
+    let imgMatch: string | undefined, imgProbability: number | undefined
+    const simpleHTR = spawn('python3', ['src/main.py', `--htr=${file.path}`])
     simpleHTR.stdout.setEncoding('utf8')
     simpleHTR.stdout.on('data', data => {
       if (pylog('stdout: ', data)) {
@@ -40,15 +40,15 @@ app.post('/htr', upload.single('image'), async (req, res) => {
         for (const line of lines) {
           const recogIdx = line.indexOf('Recognized: ')
           if (recogIdx !== -1) {
-            strokeMatch = line.slice(13, line.indexOf('"', 13))
+            imgMatch = line.slice(13, line.indexOf('"', 13))
           }
 
           const probIdx = line.indexOf('Probability: ')
           if (probIdx !== -1) {
             try {
               const prob = line.slice(13)
-              strokeProbability = parseFloat(prob)
-              res({strokeMatch, strokeProbability})
+              imgProbability = parseFloat(prob)
+              res({imgMatch, imgProbability})
             }
             catch (parseError) {
               console.log('parse error: ', parseError)
@@ -68,7 +68,7 @@ app.post('/htr', upload.single('image'), async (req, res) => {
     })
   })
 
-  const imgMatches = await fetch(google, {
+  const strokeMatches = await fetch(google, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -99,8 +99,8 @@ app.post('/htr', upload.single('image'), async (req, res) => {
       return imgMatches
     })
 
-  const strokeResponse = await strokeMatches
-  const response = {imgMatches, ...strokeResponse}
+  const imgResponse = await imgMatches
+  const response = {strokeMatches, ...imgResponse}
   console.log('replying with: ', response)
   res.send(JSON.stringify(response))
 })

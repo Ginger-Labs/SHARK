@@ -34,12 +34,12 @@ app.post('/htr', upload.single('image'), (req, res) => __awaiter(this, void 0, v
     console.log('body: ', body);
     console.log('file: ', file);
     const { strokes = defaultStrokes, width = 800, height = 800 } = body;
-    const strokeMatches = new Promise((res, rej) => {
+    const imgMatches = new Promise((res, rej) => {
         if (!file) {
-            return { strokeMatch: undefined, strokeProbability: undefined };
+            return { imgMatch: undefined, imgProbability: undefined };
         }
-        let strokeMatch, strokeProbability;
-        const simpleHTR = child_process_1.spawn('python3', ['src/main.py', `--htr='${file.path}'`]);
+        let imgMatch, imgProbability;
+        const simpleHTR = child_process_1.spawn('python3', ['src/main.py', `--htr=${file.path}`]);
         simpleHTR.stdout.setEncoding('utf8');
         simpleHTR.stdout.on('data', data => {
             if (pylog('stdout: ', data)) {
@@ -47,14 +47,14 @@ app.post('/htr', upload.single('image'), (req, res) => __awaiter(this, void 0, v
                 for (const line of lines) {
                     const recogIdx = line.indexOf('Recognized: ');
                     if (recogIdx !== -1) {
-                        strokeMatch = line.slice(13, line.indexOf('"', 13));
+                        imgMatch = line.slice(13, line.indexOf('"', 13));
                     }
                     const probIdx = line.indexOf('Probability: ');
                     if (probIdx !== -1) {
                         try {
                             const prob = line.slice(13);
-                            strokeProbability = parseFloat(prob);
-                            res({ strokeMatch, strokeProbability });
+                            imgProbability = parseFloat(prob);
+                            res({ imgMatch, imgProbability });
                         }
                         catch (parseError) {
                             console.log('parse error: ', parseError);
@@ -72,7 +72,7 @@ app.post('/htr', upload.single('image'), (req, res) => __awaiter(this, void 0, v
             console.log('exited with code: ', code);
         });
     });
-    const imgMatches = yield fetch(google, {
+    const strokeMatches = yield fetch(google, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -102,8 +102,8 @@ app.post('/htr', upload.single('image'), (req, res) => __awaiter(this, void 0, v
         }
         return imgMatches;
     });
-    const strokeResponse = yield strokeMatches;
-    const response = Object.assign({ imgMatches }, strokeResponse);
+    const imgResponse = yield imgMatches;
+    const response = Object.assign({ strokeMatches }, imgResponse);
     console.log('replying with: ', response);
     res.send(JSON.stringify(response));
 }));
