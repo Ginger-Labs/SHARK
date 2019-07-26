@@ -10,7 +10,8 @@
     "build": "tsc --strict --target ES6 -m CommonJS server/*.ts",
     "start": "node server/index.js",
     "startmon": "nodemon server/index.js",
-    "test:server": "curl -F fieldname=hi -F image=@data/analyze.png localhost:3000/htr"
+    "test:server": "curl -F fieldname=hi -F image=@data/analyze.png localhost:3000/htr",
+    "test:heavy": "curl -F fieldname=hi -F image=@data/analyze.png localhost:3000/htr"
   },
   "dependencies": {
     "express": "^4.17.1",

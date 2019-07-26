@@ -29,11 +29,45 @@ const defaultStrokes = [
         [300, 310, 320, 330, 340]
     ]
 ];
-app.post('/htr', upload.single('image'), (req, res) => __awaiter(this, void 0, void 0, function* () {
-    const { file, body } = req;
+app.post('/strokes', (req, res) => __awaiter(this, void 0, void 0, function* () {
+    const { body } = req;
     console.log('body: ', body);
-    console.log('file: ', file);
     const { strokes = defaultStrokes, width = 800, height = 800 } = body;
+    const strokeMatches = yield fetch(google, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            options: 'enable_pre_space',
+            requests: [{
+                    writing_guide: {
+                        writing_area_width: width,
+                        writing_area_height: height
+                    },
+                    ink: strokes,
+                    language: 'en_US'
+                }]
+        })
+    }).then(resp => resp.json())
+        .then(googleResponse => {
+        let imgMatches;
+        if (Array.isArray(googleResponse) && googleResponse[0] === 'SUCCESS') {
+            const [code, details] = googleResponse;
+            const [id, results] = details[0];
+            imgMatches = results;
+            console.log('[Google Response]: ', code, id, results, details.slice(1));
+        }
+        else {
+            console.log('[Google Response]: ', googleResponse);
+        }
+        return imgMatches;
+    });
+    res.send(yield strokeMatches);
+}));
+app.post('/htr', upload.single('image'), (req, res) => __awaiter(this, void 0, void 0, function* () {
+    const { file } = req;
+    console.log('file: ', file);
     const imgMatches = new Promise((res, rej) => {
         if (!file) {
             return { imgMatch: undefined, imgProbability: undefined };
@@ -72,38 +106,7 @@ app.post('/htr', upload.single('image'), (req, res) => __awaiter(this, void 0, v
             console.log('exited with code: ', code);
         });
     });
-    const strokeMatches = yield fetch(google, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            options: 'enable_pre_space',
-            requests: [{
-                    writing_guide: {
-                        writing_area_width: width,
-                        writing_area_height: height
-                    },
-                    ink: strokes,
-                    language: 'en_US'
-                }]
-        })
-    }).then(resp => resp.json())
-        .then(googleResponse => {
-        let imgMatches;
-        if (Array.isArray(googleResponse) && googleResponse[0] === 'SUCCESS') {
-            const [code, details] = googleResponse;
-            const [id, results] = details[0];
-            imgMatches = results;
-            console.log('[Google Response]: ', code, id, results, details.slice(1));
-        }
-        else {
-            console.log('[Google Response]: ', googleResponse);
-        }
-        return imgMatches;
-    });
-    const imgResponse = yield imgMatches;
-    const response = Object.assign({ strokeMatches }, imgResponse);
+    const response = yield imgMatches;
     console.log('replying with: ', response);
     res.send(JSON.stringify(response));
 }));

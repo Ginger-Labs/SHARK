@@ -23,11 +23,47 @@ const defaultStrokes = [
   ]
 ]
 
-app.post('/htr', upload.single('image'), async (req, res) => {
-  const {file, body} = req
+app.post('/strokes', async (req, res) => {
+  const {body} = req
   console.log('body: ', body)
-  console.log('file: ', file)
   const {strokes = defaultStrokes, width = 800, height = 800} = body
+  const strokeMatches = await fetch(google, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      options: 'enable_pre_space',
+      requests: [{
+        writing_guide: {
+          writing_area_width: width,
+          writing_area_height: height
+        },
+        ink: strokes,
+        language: 'en_US'
+      }]
+    })
+  }).then(resp => resp.json())
+    .then(googleResponse => {
+      let imgMatches: string[] | undefined
+      if (Array.isArray(googleResponse) && googleResponse[0] === 'SUCCESS') {
+        const [code, details] = googleResponse
+        const [id, results] = details[0]
+        imgMatches = results
+        console.log('[Google Response]: ', code, id, results, details.slice(1))
+      }
+      else {
+        console.log('[Google Response]: ', googleResponse)
+      }
+      return imgMatches
+    })
+
+  res.send(await strokeMatches)
+})
+
+app.post('/htr', upload.single('image'), async (req, res) => {
+  const {file} = req
+  console.log('file: ', file)
   const imgMatches = new Promise((res, rej) => {
     if (!file) { return {imgMatch: undefined, imgProbability: undefined} }
 
@@ -68,39 +104,8 @@ app.post('/htr', upload.single('image'), async (req, res) => {
     })
   })
 
-  const strokeMatches = await fetch(google, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      options: 'enable_pre_space',
-      requests: [{
-        writing_guide: {
-          writing_area_width: width,
-          writing_area_height: height
-        },
-        ink: strokes,
-        language: 'en_US'
-      }]
-    })
-  }).then(resp => resp.json())
-    .then(googleResponse => {
-      let imgMatches: string[] | undefined
-      if (Array.isArray(googleResponse) && googleResponse[0] === 'SUCCESS') {
-        const [code, details] = googleResponse
-        const [id, results] = details[0]
-        imgMatches = results
-        console.log('[Google Response]: ', code, id, results, details.slice(1))
-      }
-      else {
-        console.log('[Google Response]: ', googleResponse)
-      }
-      return imgMatches
-    })
 
-  const imgResponse = await imgMatches
-  const response = {strokeMatches, ...imgResponse}
+  const response = await imgMatches
   console.log('replying with: ', response)
   res.send(JSON.stringify(response))
 })
